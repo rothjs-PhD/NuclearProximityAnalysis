@@ -1,0 +1,2002 @@
+---
+title: "JSRe0115_PRO-Seq-HLBs"
+author: "Jacob Roth"
+date: "2024-06-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(dplyr)
+
+```
+
+# To do
+
+- I need a new PROseq dataset as it's corrupted to dates
+- I need to align on ensembl names then branch back out
+
+
+# Data Collection
+
+## ProSeq
+```{r Read all ProSeq data}
+#Collect all files in my wd folder that end in "Top100Codependencies_CRISPR.csv$" or "Top100Codependencies_RNAi.csv$" and make a list of said files
+#$ at the end indicates the end of the text of interest
+setwd('~/OneDrive/RothJacob_PhDFiles/1-Projects/2-Experiments/JSRe0065-T_Programming_NB03-aaa_MM-Pro-Seq/4-data_processed/deseq2')
+
+ProSeq_list <- list.files(pattern = "_deseq2_PROseq.csv$", 
+                        recursive = TRUE)
+
+#Read all files in "file_list"
+##review lapply here: https://www.earthdatascience.org/courses/earth-analytics/automate-science-workflows/use-apply-functions-for-efficient-code-r/
+ProSeq_data <- lapply(ProSeq_list, function(x){
+  read.csv(x, 
+             header = TRUE, 
+             sep = ",", 
+             stringsAsFactors = FALSE)})
+
+#shorten name of each file to only reference the parent dataset
+ProSeq_files <- gsub("4-data_processed/deseq2/", "", ProSeq_list)
+# 4-data_processed
+ProSeq_files <- gsub("_deseq2_PROseq.csv", "", ProSeq_files)
+
+names(ProSeq_data) <- ProSeq_files
+
+ProSeq_df <- bind_rows(ProSeq_data,
+                  .id = "treatment")
+names(ProSeq_df)[names(ProSeq_df) == 'gene_type'] <- 'Class'
+names(ProSeq_df)[names(ProSeq_df) == 'gene_name'] <- 'GeneSymbol'
+
+```
+
+```{r Create new treatment name entries}
+treatment <- unique(ProSeq_df$treatment)
+treatment_names <- c("DEX-15min_vs_Untreated-1",
+                      "DEX-3hrs_vs_Untreated-1",
+                      "DEX-coGSK591-3hrs_vs_DEX-3hrs",
+                      "DEX-coMS023-3hrs_vs_DEX-3hrs",
+                      "GSK591-15min_vs_Untreated-2",
+                      "GSK591-15min-DEX-15min_vs_DEX-15-min",
+                      "GSK591-2days_vs_Untreated-1",
+                      "GSK591-3hr_vs_Untreated-2",
+                      "GSK591-4days_vs_Untreated-1",
+                      "GSK591-7days_vs_Untreated-1",
+                      "GSK591-7days-DEX-15min_vs_DEX-15min",
+                      "GSK591-7days-DEX-3hrs_vs_DEX-3hrs" ,
+                      "MS023-15min_vs_Untreated-2",
+                      "MS023-15min-DEX-15min",
+                      "MS023-15min-DEX-15min_vs_DEX-15-min",
+                      "MS023-2days_vs_Untreated-1",
+                      "MS023-3hr_vs_Untreated-2",
+                      "MS023-4days_vs_Untreated-1",
+                      "MS023-7days_vs_Untreated-1",
+                      "MS023-7days-DEX-15min_vs_DEX-15min",
+                      "MS023-7days-DEX-3hrs_vs_DEX-3hrs")
+
+treatment_names1 <- c("DEX_15min",
+                     "DEX_3hrs",
+                     "DEX-coGSK591_3hrs",
+                     "DEX-coMS023_3hrs",
+                     "GSK591_15min",
+                     "GSK591-15min-DEX-15min_vs_DEX-15-min",
+                     "GSK591_48hr",
+                     "GSK591_3hr",
+                     "GSK591_96hr",
+                     "GSK591_168hr",
+                     "GSK591-7days-DEX-15min_vs_DEX-15min",
+                     "GSK591-7days-DEX-3hrs_vs_DEX-3hrs",
+                     "MS023_15min",
+                     "MS023_15min-DEX-15min",
+                     "MS023_15min-DEX-15min_vs_DEX-15-min",
+                     "MS023_48hr",
+                     "MS023_3hr",
+                     "MS023_96hr",
+                     "MS023_168hr",
+                     "MS023-7days-DEX-15min_vs_DEX-15min",
+                     "MS023-7days-DEX-3hrs_vs_DEX-3hrs")
+
+treatment_names2 <- c("DEX_15min",
+                     "DEX_3hrs",
+                     "DEX-coGSK591_3hrs",
+                     "DEX-coMS023_3hrs",
+                     "Type II PRMTi: 15min",
+                     "GSK591-15min-DEX-15min_vs_DEX-15-min",
+                     "Type II PRMTi: 48hr",
+                     "Type II PRMTi: 3hr",
+                     "Type II PRMTi: 96hr",
+                     "Type II PRMTi: 168hr",
+                     "GSK591-7days-DEX-15min_vs_DEX-15min",
+                     "GSK591-7days-DEX-3hrs_vs_DEX-3hrs",
+                     "Type I PRMTi: 15min",
+                     "MS023_15min-DEX-15min",
+                     "MS023_15min-DEX-15min_vs_DEX-15-min",
+                     "Type I PRMTi: 48hr",
+                     "Type I PRMTi: 3hr",
+                     "Type I PRMTi: 96hr",
+                     "Type I PRMTi: 168hr",
+                     "MS023-7days-DEX-15min_vs_DEX-15min",
+                     "MS023-7days-DEX-3hrs_vs_DEX-3hrs")
+
+treatment_names3 <- c("Dexamethosone",
+                     "Dexamethosone",
+                     "Dexamethosone-Type II PRMTi",
+                     "Dexamethosone-Type I PRMTi",
+                     "Type II PRMTi",
+                     "GSK591-15min-DEX-15min_vs_DEX-15-min",
+                     "Type II PRMTi",
+                     "Type II PRMTi",
+                     "Type II PRMTi",
+                     "Type II PRMTi",
+                     "GSK591-7days-DEX-15min_vs_DEX-15min",
+                     "GSK591-7days-DEX-3hrs_vs_DEX-3hrs",
+                     "Type I PRMTi",
+                     "MS023_15min-DEX-15min",
+                     "MS023_15min-DEX-15min_vs_DEX-15-min",
+                     "Type I PRMTi",
+                     "Type I PRMTi",
+                     "Type I PRMTi",
+                     "Type I PRMTi",
+                     "MS023-7days-DEX-15min_vs_DEX-15min",
+                     "MS023-7days-DEX-3hrs_vs_DEX-3hrs")
+
+treatment_focused <- c("GSK591-15min_vs_Untreated-2",
+                       "GSK591-3hr_vs_Untreated-2",
+                       "GSK591-2days_vs_Untreated-1",
+                       "GSK591-4days_vs_Untreated-1",
+                       "GSK591-7days_vs_Untreated-1",
+                       "MS023-15min_vs_Untreated-2",
+                       "MS023-3hr_vs_Untreated-2",
+                       "MS023-2days_vs_Untreated-1",
+                       "MS023-4days_vs_Untreated-1",
+                       "MS023-7days_vs_Untreated-1")
+
+treatment_focused2 <- c("Type II PRMTi: 15min",
+                     "Type II PRMTi: 3hr",
+                     "Type II PRMTi: 48hr",
+                     "Type II PRMTi: 96hr",
+                     "Type II PRMTi: 168hr",
+                     "Type I PRMTi: 15min",
+                     "Type I PRMTi: 3hr",
+                     "Type I PRMTi: 48hr",
+                     "Type I PRMTi: 96hr",
+                     "Type I PRMTi: 168hr")
+  
+treatment_df <- data.frame(treatment,
+                           treatment_names1,
+                           treatment_names2,
+                           treatment_names3
+                           )
+
+ProSeq_df <- left_join(ProSeq_df,
+          treatment_df,
+          by = "treatment")
+
+```
+
+```{r Add column for incubation time}
+incubation_hour <- c(0.25,
+                      3,
+                      3,
+                      3,
+                      0.25,
+                      0.25,
+                      48,
+                      3,
+                      96,
+                      168,
+                     0,
+                     0,
+                      0.25,
+                      0.25,
+                      0.25,
+                      48,
+                      3,
+                      96,
+                      168,
+                      0,
+                      0)
+
+incubation_hour2 <- c("15 min",
+                      "3 hours",
+                      "3 hours",
+                      "3 hours",
+                      "15 min",
+                      "15 min",
+                      "48 hours",
+                      "3 hours",
+                      "96 hours",
+                      "168 hours",
+                     "NA",
+                     "NA",
+                      "15 min",
+                      "15 min",
+                      "15 min",
+                      "48 hours",
+                      "3 hours",
+                     "96 hours",
+                      "168 hours",
+                      "NA",
+                     "NA")
+
+# incubation_days <- c(0.25,
+#                       3,
+#                       3,
+#                       3,
+#                       0.25,
+#                       0.25,
+#                       48,
+#                       3,
+#                       96,
+#                       168,
+#                      0,
+#                      0,
+#                       0.25,
+#                       0.25,
+#                       0.25,
+#                       48,
+#                       3,
+#                       96,
+#                       168,
+#                       0,
+#                       0)
+
+incubation_df <- data.frame(treatment,
+                            incubation_hour,
+                            incubation_hour2
+                           )
+incubation_df$incubation_hour = as.numeric(as.character(incubation_df$incubation_hour))
+
+ProSeq_df <- left_join(ProSeq_df,
+          incubation_df,
+          by = "treatment")
+
+```
+## Collect histone genes from this paper:
+
+A standardized nomenclature for mammalian histone genes
+R. L. Seal, P. Denny, E. A. Bruford, A. K. Gribkova, D. Landsman, W. F. Marzluff, et al.
+Epigenetics &amp; Chromatin 2022 Vol. 15 Issue 1 
+DOI: 10.1186/s13072-022-00467-2
+
+
+```{r Read Histone data}
+
+data_histones <- read.csv("2-data_raw/Seal-2022_HistoneNames/13072_2022_467_MOESM2_ESM copy.csv")
+# length(unique(seal_histones$gene_id))
+
+# seal_histones <- seal_histones %>%
+#   dplyr::select(c("Histone_type","Histone_variant","HGNC_Symbol","gene_id")) %>%
+#   unique()
+
+# Additions in PRO-seq but not in the seal dataset "previous symbol"
+# HIST1H2AC
+# HISTIHAH
+# HIST4H4
+
+
+```
+
+##Histone subsets
+```{r Create Histone sub-datasets, eval = FALSE}
+
+# List_HistoneType <- unique(seal_histones$Histone_type)
+
+H1_geneID <- unique(seal_histones$gene_id[seal_histones$Histone_type == "H1"])
+H2A_geneID <- unique(seal_histones$gene_id[seal_histones$Histone_type == "H2A"])
+H2B_geneID <- unique(seal_histones$gene_id[seal_histones$Histone_type == "H2B"])
+H3_geneID <- unique(seal_histones$gene_id[seal_histones$Histone_type == "H3"])
+H4_geneID <- unique(seal_histones$gene_id[seal_histones$Histone_type == "H4"])
+
+HGNC_Symbol_H1 <- unique(seal_histones$HGNC_Symbol[seal_histones$Histone_type == "H1"])
+HGNC_Symbol_H2A <- unique(seal_histones$HGNC_Symbol[seal_histones$Histone_type == "H2A"])
+HGNC_Symbol_H2B <- unique(seal_histones$HGNC_Symbol[seal_histones$Histone_type == "H2B"])
+HGNC_Symbol_H3 <- unique(seal_histones$HGNC_Symbol[seal_histones$Histone_type == "H3"])
+HGNC_Symbol_H4 <- unique(seal_histones$HGNC_Symbol[seal_histones$Histone_type == "H4"])
+# 
+# 
+# 
+# H1_entrez_gene <- c(
+# "ENSG00000189060",
+# "ENSG00000124610",
+# "ENSG00000187837",
+# "ENSG00000124575",
+# "ENSG00000168298",
+# "ENSG00000184357",
+# "ENSG00000187475",
+# "ENSG00000187166",
+# "ENSG00000178804",
+# "ENSG00000188662",
+# "ENSG00000184897",
+# "ENSG00000216331")
+
+DESEQ2_H1 <- 
+DESEQ2_H1 %>%
+    filter(gene_id %in% H1_entrez_gene)
+
+
+
+
+```
+
+# APEX2-Labeling of nuclear bodies
+### NPAT-proximal genes
+
+Systematic mapping of nuclear domain-associated transcripts reveals speckles and lamina as hubs of functionally distinct retained introns
+A. R. Barutcu, M. Wu, U. Braunschweig, B. J. A. Dyakov, Z. Luo, K. M. Turner, et al.
+Molecular Cell 2022 Vol. 82 Issue 5 Pages 1035-1052.e9
+DOI: 10.1016/j.molcel.2021.12.010
+
+Table S6 - Related to Figure 3- Table showing the Hi-C sub-compartments of coding regions of the transcripts associated with each nuclear domain marker by APEX-seq.   marker by APEX-seq.
+
+Hi-C subcompartments: A1, A2, B1, B2, B3
+
+```{r NPAT Prox}
+data_NPAT <- read.csv("2-data_raw/Barutcu-2022_APEX2-NuclearBodies/1-s2.0-S1097276521010728-mmc7_NPAT.csv")
+
+data_NPAT <- unique(data_NPAT)
+
+```
+
+### WRAP53-proximal genes
+
+Table S6 - Related to Figure 3- Table showing the Hi-C sub-compartments of coding regions of the transcripts associated with each nuclear domain marker by APEX-seq.   marker by APEX-seq.
+
+Hi-C subcompartments: A1, A2, B1, B2, B3
+
+```{r WRAP53 prox}
+data_WRAP53 <- read.csv("2-data_raw/Barutcu-2022_APEX2-NuclearBodies/1-s2.0-S1097276521010728-mmc7_WRAP53.csv")
+
+data_WRAP53 <- unique(data_WRAP53)
+
+```
+
+```{r}
+# Define the path to your Excel file
+file_path <- "2-data_raw/Barutcu-2022_APEX2-NuclearBodies/1-s2.0-S1097276521010728-mmc7_copy.xlsx"
+
+
+
+# Get the names of all sheets in the Excel file
+sheet_names <- excel_sheets(file_path)
+# Function to read each sheet, skip the first row, and set the second row as column names
+read_sheet <- function(sheet_name) {
+  df <- read_excel(file_path, sheet = sheet_name, skip = 1)
+  colnames(df) <- make.names(colnames(df), unique = TRUE)
+  df <- df %>% slice(-1)
+  df <- df %>% mutate(sheet_name = sheet_name) # Add a column for the sheet name
+  return(df)
+}
+
+# Read all sheets and store them in a list of data frames
+data_Barutcu <- lapply(sheet_names, read_sheet)
+
+# Set names of the list elements to the sheet names
+names(data_Barutcu) <- sheet_names
+
+# Combine all data frames into one
+data_Barutcu_long <- bind_rows(data_Barutcu)
+
+# Select the relevant columns and reshape the data
+data_Barutcu_wide <- data_Barutcu_long %>%
+  select(gene, ChromComp, sheet_name) %>%
+  distinct() %>%
+  pivot_wider(names_from = sheet_name, values_from = sheet_name, values_fill = list(sheet_name = "no"), values_fn = list(sheet_name = ~ "yes"))
+
+```
+
+
+
+```{r E2F Regulated}
+data_E2F <- read.table("/Users/jacobroth/Library/CloudStorage/OneDrive-Personal/RothJacob_PhDFiles/1-Projects/2-Experiments/JSRe0115-T_na_NB03-194_LearningAboutHistonesAndHistoneLocusBodies/2-data_raw/Bracken-2004_E2F-Genes/Bracken_Table1.csv", header = T, sep = ',')
+```
+
+## Cajal body proximal genes
+
+Cajal bodies are linked to genome conformation
+Q. Wang, I. A. Sawyer, M.-H. Sung, D. Sturgill, S. P. Shevtsov, G. Pegoraro, et al.
+Nature Communications 2016 Vol. 7 Issue 1 Pages 10966
+DOI: 10.1038/ncomms10966
+
+```{r CB Prox}
+data_CB_Overlap <- read.table("2-data_raw/Wang-2016_CB-GenomicOrg/41467_2016_BFncomms10966_MOESM1635_ESM_OverlapOnly.csv", header = T, sep = ',')
+
+
+```
+
+# Coilin iCLIP
+```{r Get Coilin iCLIP data from Neugebaur et al, eval = FALSE}
+# Need to change WD to JSRe0138
+data_Coilin_Clip <- read.table("./2-data_raw/Machyna-Neugebauer/1-s2.0-S1097276514007886-mmc3.csv",
+                               header = T,
+                               skip = 3,
+                               sep = ',')
+
+#remove columns of mouse data
+data_Coilin_Clip <- data_Coilin_Clip %>%
+  dplyr::select(-c(chromosome,strand,gene.start,gene.end,gene.name,biotype,CLIP.tag.count))
+
+data_Coilin_Clip <- data_Coilin_Clip %>%
+  separate(gene.name.1, c("hgnc_symbol", "ENSG"), sep = "-")
+
+
+colnames(data_Coilin_Clip)
+```
+
+# Coilin ChipSeq  
+```{r Get Coilin ClipSeq data from Neugebaur et al, eval = FALSE}
+# Need to change WD to JSRe0138
+data_Coilin_ChipSeq <- read.table("./2-data_raw/Machyna-Neugebauer/1-s2.0-S1097276514007886-mmc2.csv",
+                               header = T,
+                               skip = 3,
+                               sep = ',')
+
+
+# add empty rows to enable cbind
+# data_CB_Overlap[ nrow(data_CB_Overlap) + 1:25269, ] <- NA
+
+```
+
+
+# Create master list from Pro-Seq uniques
+
+```{r}
+
+# Extract unique values from the "transcript_name" columns
+# unique_transcript_names <- unique(unlist(lapply(data_ProSeq, function(df) df$transcript_name)))
+
+# Print the unique transcript names
+# print(unique_transcript_names)
+
+
+# Extract unique values from the "transcript_name" columns
+unique_transcript_names <- unique(unlist(lapply(ProSeq_data, function(df) df$transcript_name)))
+
+# Create a dataframe with one column for the unique transcript names
+transcript_names_df <- data.frame(transcript_name = unique_transcript_names, stringsAsFactors = FALSE)
+
+# Sort the dataframe alphabetically by the transcript_name column
+transcript_names_df <- transcript_names_df[order(transcript_names_df$transcript_name), , drop = FALSE]
+
+rm(unique_transcript_names)
+```
+
+```{r}
+# Install and load the dplyr package
+if (!require(dplyr)) {
+  install.packages("dplyr")
+}
+library(dplyr)
+
+
+# Add the new columns for histones
+transcript_names_df <- transcript_names_df %>%
+  mutate(histone = ifelse(transcript_name %in% data_histones$PreviousSymbol, "yes", "no"))
+
+# transcript_names_df <- transcript_names_df %>%
+#   mutate(histone2 = ifelse(transcript_name %in% data_histones$PreviousSymbol,
+#                            data_histones$HGNC.symbol,
+#                            data_histones$transcript_name))
+# 
+transcript_names_df <- transcript_names_df %>%
+  left_join(data_histones, by = c("transcript_name" = "PreviousSymbol")) %>%
+  mutate(histone2 = ifelse(!is.na(HGNC.symbol), HGNC.symbol, transcript_name))
+  # select(-HGNC.symbol) # Optional: to remove the joined column if not needed
+
+transcript_names_df <- merge(transcript_names_df, data_Barutcu_wide, by.x = "histone2", by.y = "gene", all.x = TRUE)
+
+# Replace NA values with "no" in the specified columns
+transcript_names_df <- transcript_names_df %>%
+  mutate_at(vars(sheet_names), ~ ifelse(is.na(.), "no", .))
+
+# Add the new column "NPAT_proximal"
+transcript_names_df <- transcript_names_df %>%
+  mutate(NPAT_proximal1 = ifelse(transcript_name %in% data_NPAT$gene, "yes", "no"))
+transcript_names_df <- transcript_names_df %>%
+  mutate(NPAT_proximal2 = ifelse(histone2 %in% data_NPAT$gene, "yes", "no"))
+
+
+# Add the new column "WRAP53_proximal"
+transcript_names_df <- transcript_names_df %>%
+  mutate(WRAP53_proximal1 = ifelse(transcript_name %in% data_WRAP53$gene, "yes", "no"))
+
+# Add the new column "WRAP53_proximal"
+transcript_names_df <- transcript_names_df %>%
+  mutate(WRAP53_proximal2 = ifelse(histone2 %in% data_WRAP53$gene, "yes", "no"))
+
+# Add the new columns for H3.3 and U1 proximal
+transcript_names_df <- transcript_names_df %>%
+  mutate(H3F3_50_proximal = ifelse(transcript_name %in% data_CB_Overlap$H3F3_50, "yes", "no"))
+transcript_names_df <- transcript_names_df %>%
+  mutate(H3F3_25_proximal = ifelse(transcript_name %in% data_CB_Overlap$H3F3_25, "yes", "no"))
+transcript_names_df <- transcript_names_df %>%
+  mutate(H3F3_10_proximal = ifelse(transcript_name %in% data_CB_Overlap$H3F3_10, "yes", "no"))
+
+transcript_names_df <- transcript_names_df %>%
+  mutate(U1_50_proximal = ifelse(transcript_name %in% data_CB_Overlap$U1_50, "yes", "no"))
+transcript_names_df <- transcript_names_df %>%
+  mutate(U1_25_proximal = ifelse(transcript_name %in% data_CB_Overlap$U1_25, "yes", "no"))
+transcript_names_df <- transcript_names_df %>%
+  mutate(U1_10_proximal = ifelse(transcript_name %in% data_CB_Overlap$U1_10, "yes", "no"))
+
+# Add the new columns for H3.3 and U1 proximal
+transcript_names_df <- transcript_names_df %>%
+  mutate(H3F3_50_proximal2 = ifelse(histone2 %in% data_CB_Overlap$H3F3_50, "yes", "no"))
+transcript_names_df <- transcript_names_df %>%
+  mutate(H3F3_25_proximal2 = ifelse(histone2 %in% data_CB_Overlap$H3F3_25, "yes", "no"))
+transcript_names_df <- transcript_names_df %>%
+  mutate(H3F3_10_proximal2 = ifelse(histone2 %in% data_CB_Overlap$H3F3_10, "yes", "no"))
+
+transcript_names_df <- transcript_names_df %>%
+  mutate(U1_50_proximal2 = ifelse(histone2 %in% data_CB_Overlap$U1_50, "yes", "no"))
+transcript_names_df <- transcript_names_df %>%
+  mutate(U1_25_proximal2 = ifelse(histone2 %in% data_CB_Overlap$U1_25, "yes", "no"))
+transcript_names_df <- transcript_names_df %>%
+  mutate(U1_10_proximal2 = ifelse(histone2 %in% data_CB_Overlap$U1_10, "yes", "no"))
+
+# test2 <- filter(transcript_names_df, histone =="yes" & WRAP53_proximal1 == "yes")
+
+```
+
+```{r eval = FALSE}
+write.csv(transcript_names_df,
+          file=paste("4-data_processed/PRO-seqTranscriptsWithHLB-CB-Annotations-2.csv", sep =""),
+          row.names = FALSE)
+```
+
+```{r Are Histones in CBs or HLB}
+
+# data_histone_subset <- transcript_names_df %>%
+#   filter(transcript_name %in% data_histones$)
+
+
+# Filter the dataframe to include only rows where transcript_name starts with "H"
+filtered_df <- transcript_names_df %>%
+  filter(grepl("^H", transcript_name))
+
+# HIST1H2AC
+# HISTIHAH
+# HIST4H4
+
+```
+
+```{r Merge Annotations to ProSeq_df}
+
+
+#add annotations
+ProSeq_df <- merge(ProSeq_df, transcript_names_df, by.x = "transcript_name", by.y = "transcript_name", all.x = TRUE)
+
+```
+
+
+```{r stats, eval = FALSE}
+
+#Make a function to output summary statistics
+stat_box_data <- function(y, upper_limit = 1) {
+  return(
+    data.frame(
+      y = upper_limit,
+      label = paste('count =', length(y), '\n',
+                    'median =', round(median(y),3), '\n')
+    )
+  )
+}
+```
+
+
+Statistical testing
+Note that, unpaired two-samples t-test can be used only under certain conditions:
+
+when the two groups of samples (A and B), being compared, are normally distributed. This can be checked using Shapiro-Wilk test.
+and when the variances of the two groups are equal. This can be checked using F-test.
+
+```{r, eval = FALSE}
+library(dplyr)
+
+test <- ProSeq_df %>%
+  filter(incubation_hour == "168")
+
+test %>%
+  # filter(incubation_hour == "96") %>%
+group_by(histone) %>%
+  summarise(
+    count = n(),
+    mean = mean(log2FoldChange, na.rm = TRUE),
+    sd = sd(log2FoldChange, na.rm = TRUE)
+  )
+
+# Shapiro-Wilk normality test for Men's weights
+# with(test, shapiro.test(log2FoldChange[histone == "no"]))# p = 0.1
+# Shapiro-Wilk normality test for Women's weights
+# with(my_data, shapiro.test(weight[group == "Woman"])) # p = 0.6
+
+# Error:
+# https://stats.stackexchange.com/questions/446262/can-a-sample-larger-than-5-000-data-points-be-tested-for-normality-using-shapiro
+
+res.ftest <- var.test(log2FoldChange ~ histone, data = test)
+res.ftest
+#The p-value is less than the significance level alpha = 0.05. Therefore, there is a significant difference between the variances of the two sets of data. Therefore, we can not use the classic t-test witch assume equality of the two variances.
+
+# Compute t-test
+res <- t.test(log2FoldChange ~ histone, data = test, var.equal = TRUE)
+res
+```
+# Boxplots
+
+```{r Boxplots with histone subset GSK}
+# unique(ProSeq_df$treatment_names1)
+PlotList <- c("GSK591_15min","GSK591_3hr", "GSK591_48hr", "GSK591_96hr", "GSK591_168hr"
+              # , "MS023_168hr"
+              )
+
+colors<-c("#006600", "#666666")
+
+plot <- 
+  ProSeq_df %>%
+  filter(treatment_names1 %in% PlotList) %>%
+  # filter(incubation_hour == "0.25") %>%
+  ggplot(aes(x=factor(incubation_hour), y=log2FoldChange, 
+             color = factor(histone),
+             # color = factor(NPAT_proximal2),
+             # color = factor(U1_50_proximal),
+             # fill=treatment_names1
+             )) + 
+  geom_hline(yintercept = 0 , linetype = 'dashed')+
+  geom_boxplot(width=0.7)+
+  # geom_violin(alpha=0.5, orientation = 'y')+
+  # scale_fill_manual(values=colors)+
+  labs(title="Nascent transcription upon PRMT5 inhibition: \nAnalysis of histone genes",
+       x="Incubation Time (hours; non-linear)", y = "Log2 FC")+
+  #geom_jitter(shape=21,width = .2, alpha = .2) +
+  scale_color_manual(values=colors)+
+  theme_classic()+
+  theme(title=element_text(size=16,face="bold"),
+        axis.text=element_text(size=14,colour = "black"),
+        axis.title=element_text(size=14,face="bold"),
+        legend.title=element_text(size=14),
+        legend.text=element_text(size=14))
+  # theme(legend.position = 'none')+
+  # xlim(-0.5,2.5)
+  # stat_compare_means(
+  #  comparisons = list(c("GSK591vDMSO_chromatin", "AllA549ExpressedGenes")),
+  #  method = "wilcox.test",
+  #  #aes(x = 2),  # Specify x-coordinate for comparison annotations, dont need if specifying comparisons
+  #  bracket.size = 0.5,
+  #  label = "p.signif" #converts p value to stars
+  # ) + 
+  # stat_summary(
+  #   fun.data = stat_box_data,
+  #   geom = "text",
+  #   hjust = 2.5,
+  #   # vjust = 1.2
+  # )+
+  # coord_flip()
+
+plot
+ggsave("5-figures/Boxplots/JSRe0115-R_Boxplot-ProSeqTimecourse_GSK591_20240718.pdf")
+
+```
+
+```{r Boxplots with histone subset}
+# unique(ProSeq_df$treatment_names1)
+PlotList2 <- c("MS023_15min","MS023_3hr", "MS023_48hr", "MS023_96hr", "MS023_168hr"
+              # , "MS023_168hr"
+              )
+
+colors<-c("#6F2DA8", "#666666")
+
+plot <- 
+  ProSeq_df %>%
+  filter(treatment_names1 %in% PlotList2) %>%
+  # filter(incubation_hour == "0.25") %>%
+  ggplot(aes(x=factor(incubation_hour), y=log2FoldChange, 
+             color = factor(histone),
+             # color = factor(NPAT_proximal2),
+             # color = factor(U1_50_proximal),
+             # fill=treatment_names1
+             )) + 
+  geom_hline(yintercept = 0 , linetype = 'dashed')+
+  geom_boxplot(width=0.7)+
+  # geom_violin(alpha=0.5, orientation = 'y')+
+  # scale_fill_manual(values=colors)+
+  labs(title="Nascent transcription upon PRMT Type I inhibition: \nAnalysis of histone genes",
+       x="Incubation Time (hours; non-linear)", y = "Log2 FC")+
+  #geom_jitter(shape=21,width = .2, alpha = .2) +
+  scale_color_manual(values=colors)+
+  theme_classic()+
+  theme(title=element_text(size=16,face="bold"),
+        axis.text=element_text(size=14,colour = "black"),
+        axis.title=element_text(size=14,face="bold"),
+        legend.title=element_text(size=14),
+        legend.text=element_text(size=14))
+  # theme(legend.position = 'none')+
+  # xlim(-0.5,2.5)
+  # stat_compare_means(
+  #  comparisons = list(c("GSK591vDMSO_chromatin", "AllA549ExpressedGenes")),
+  #  method = "wilcox.test",
+  #  #aes(x = 2),  # Specify x-coordinate for comparison annotations, dont need if specifying comparisons
+  #  bracket.size = 0.5,
+  #  label = "p.signif" #converts p value to stars
+  # ) + 
+  # stat_summary(
+  #   fun.data = stat_box_data,
+  #   geom = "text",
+  #   hjust = 2.5,
+  #   # vjust = 1.2
+  # )+
+  # coord_flip()
+
+plot
+
+ggsave("5-figures/Boxplots/JSRe0115-R_Boxplot-ProSeqTimecourse_MS023_20240718.pdf")
+
+```
+
+# Permutation Testing
+
+[https://bookdown.org/curleyjp0/psy317l_guides5/permutation-testing.html]
+Permutation tests are a type of randomization test. The theoretial difference between permutation tests and inferential tests is that with permutation tests we build the sampling distribution from the observed data, rather than infering or assuming that a sampling distribution exist.
+
+In practice, what a permutation test does is to take your observed data and then shuffle (or permute) part of it. After each shuffle, some aspect of the data is recalculated. That could be for instance the correlation coefficient, or it could be a difference in means between two groups. The data then get randomly reshuffled again, and the test-statistic is recalculated again. This goes on for thousands of times - for as many shuffles are deemed acceptable. This is usually a minimum of 1,000 but typically at least 10,000 shuffles are done. After all the permutations (shuffles) are performed, a distribution of the statistic of interest is generated from the permutations. This is comapred to the original observed statistics (e.g. correlation coefficient, difference in group means) to see if the observed value is unusually large compared to the permuted data.
+
+## test with GSK591 15min
+```{r}
+#"GSK591_15min" "GSK591_3hr"   "GSK591_48hr"  "GSK591_96hr"  "GSK591_168hr"
+
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_15min") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_15min") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_15min") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+# shapiro.test(test_WithoutHistones$log2FoldChange) 
+shapiro.test(test_histone$log2FoldChange)
+```
+Fails Shapiro-Wilk test of normality
+
+```{r}
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+t.test(test_all$log2FoldChange, test_histone$log2FoldChange, var.equal = T)
+
+```
+However, this test relies on several assumptions (see section 10.7). Instead, we could apply a permutation test that is free of assumptions.
+
+```{r}
+set.seed(1) # just to keep the random number generator the same for all of us
+
+#combine all the data:
+allscores <- test_all$log2FoldChange
+
+
+#Next, we shuffle them into new groups equal to the two comparison groups
+x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+
+#Need to confirm that they're equal to allscores
+# nrow(test_WithoutHistones)+nrow(test_histone)
+
+# x[[1]] # this is our shuffled sample of nrow(test_WithoutHistones)
+# x[[2]] # this is our shuffled sample of nrow(test_histone)
+
+```
+
+We have two brand new samples that contain all of the scores from our original data, but they’ve just been shuffled around. We could look at what the difference in sample means is between these two new samples:
+
+```{r}
+mean(x[[1]])  # mean of the new sample of nrow(test_WithoutHistones)
+mean(x[[2]])  # mean of the new sample of nrow(test_histone)
+
+# what's the difference in their means?
+mean(x[[1]]) - mean(x[[2]]) 
+```
+
+The difference in sample means is 0.096107, which is a lot smaller than our original difference in sample means of 0.9189625.
+
+Let’s do this same process 10,000 times! Don’t worry too much about the details of the code. What we are doing is the above process, just putting it in a loop and asking it to do it 10,000 times. We save all the results in an object called results.
+
+```{r}
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(nrow(test_all), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df <- data.frame(difs = unlist(results))
+
+ggplot(df, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+```
+
+We can directly calculate how many times out of 10,000 shuffles we got a difference in sample means that was greater than meandif
+
+```{r}
+sum(unlist(results) > meandif)  # 0 times out of 10000
+# sum(unlist(results) < meandif)  # 10000 times out of 10000
+```
+To convert this to a p-value, we simply divide this value by the number of shuffles we ran - which was 10,000.
+
+```{r}
+sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+Looks like the one-tailed p-value for 15min GSK591 is 0.0013 or 0.0026 for a 2-tailed p-value
+
+## GSK591_15min
+
+```{r GSK591_15min perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_15min") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_15min") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_15min") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_GSK15min <- data.frame(difs = unlist(results))
+
+ggplot(df_GSK15min, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("GSK 15min Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+ggsave("5-figures/PermTests/df_GSK15min.pdf")
+
+
+count_GSK15min <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_GSK15min <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+
+## GSK591_3hr
+
+```{r GSK591_3hr perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_3hr") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_3hr") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_3hr") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_GSK3hr <- data.frame(difs = unlist(results))
+
+ggplot(df_GSK3hr, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("GSK3hr Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+ggsave("5-figures/PermTests/df_GSK3hr.pdf")
+
+count_GSK3hr <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_GSK3hr <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+
+## GSK591_48hr
+
+
+```{r GSK591_48hr Perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_48hr") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_48hr") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_48hr") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_GSK48hr <- data.frame(difs = unlist(results))
+
+ggplot(df_GSK48hr, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("GSK48hr Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+ggsave("5-figures/PermTests/df_GSK48hr.pdf")
+
+count_GSK48hr <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_GSK48hr <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+## GSK591_96hr
+
+
+```{r GSK591_96hr Perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_96hr") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_96hr") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_96hr") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_GSK96hr <- data.frame(difs = unlist(results))
+
+ggplot(df_GSK96hr, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("GSK96hr Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+ggsave("5-figures/PermTests/df_GSK96hr.pdf")
+
+count_GSK96hr <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_GSK96hr <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+## GSK591_168hr
+
+
+```{r GSK591_168hr Perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_168hr") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_168hr") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "GSK591_168hr") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_GSK168hr <- data.frame(difs = unlist(results))
+
+ggplot(df_GSK168hr, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("GSK168hr Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+ggsave("5-figures/PermTests/df_GSK168hr.pdf")
+
+
+count_GSK168hr <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_GSK168hr <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+
+## MS023_168hr
+
+```{r MS023_168hr Perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_168hr") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_168hr") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_168hr") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_MS023168hr <- data.frame(difs = unlist(results))
+
+ggplot(df_MS023168hr, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("MS023-168hr Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+ggsave("5-figures/PermTests/df_MS023-168hr.pdf")
+
+count_MS023168hr <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_MS023168hr <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+
+## MS023_96hr
+
+```{r MS023_96hr Perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_96hr") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_96hr") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_96hr") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_MS02396hr <- data.frame(difs = unlist(results))
+
+ggplot(df_MS02396hr, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("MS023-96hr Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+
+count_MS02396hr <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_MS02396hr <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+## MS023_48hr
+
+```{r MS023_48hr Perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_48hr") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_48hr") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_48hr") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+
+mean(test_WithoutHistones$log2FoldChange)
+mean(test_histone$log2FoldChange)
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_MS02348hr <- data.frame(difs = unlist(results))
+
+ggplot(df_MS02348hr, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("MS023-48hr Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+ggsave("5-figures/PermTests/df_MS023-48hr.pdf")
+
+count_MS02348hr <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_MS02348hr <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+
+## MS023_3hr
+
+```{r MS023_3hr Perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_3hr") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_3hr") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_3hr") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_MS0233hr <- data.frame(difs = unlist(results))
+
+ggplot(df_MS0233hr, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("MS023-3hr Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+ggsave("5-figures/PermTests/df_MS023-3hr.pdf")
+
+count_MS0233hr <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_MS0233hr <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+
+## MS023_15min
+
+```{r MS023_15min Perm}
+test_histone <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_15min") %>%
+  filter(histone == "yes") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_WithoutHistones <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_15min") %>%
+  filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+test_all <- ProSeq_df %>%
+  filter(treatment_names1 == "MS023_15min") %>%
+  # filter(histone == "no") %>%
+  select(transcript_name,log2FoldChange,pvalue, padj,histone2) %>%
+  unique()
+
+meandif <- mean(test_WithoutHistones$log2FoldChange)  - mean(test_histone$log2FoldChange)   # 5.48 meandif
+meandif
+
+nrow(test_histone)+nrow(test_WithoutHistones)
+nrow(test_all)
+allscores <- test_all$log2FoldChange
+
+results<-vector('list',100000)
+for(i in 1:100000){
+  x <- split(sample(allscores), rep(1:2, c(nrow(test_WithoutHistones),nrow(test_histone))))
+  results[[i]]<-mean(x[[1]]) - mean(x[[2]])  
+}
+
+head(unlist(results)) # these are all our mean differences from 10,000 shuffles of the data. We're just looking at the first 6.
+
+df_MS02315min <- data.frame(difs = unlist(results))
+
+ggplot(df_MS02315min, aes(x=difs)) +
+  geom_histogram(color="black", fill="green", alpha=.4) +
+  geom_vline(color="navy",lwd=1,lty=2,
+             xintercept = meandif) +
+  theme_classic()+
+  ggtitle("MS023-15min Mean Differences from \n 100000 Permutations of Raw Data \n vert line = mean difference of test")
+ggsave("5-figures/PermTests/df_MS023-15min.pdf")
+
+count_MS02315min <- sum(unlist(results) > meandif)  # 0 times out of 10000
+pval_MS02315min <- 2*sum(unlist(results) > meandif) /100000  # which is 0.0202 proportion of the time
+
+```
+
+
+
+## Save Perm test results
+```{r}
+# Assuming pval_GSK168hr and pval_GSK48hr are vectors of p-values
+
+# Create a vector for the treatment names, repeating each treatment name for the length of its p-values
+treatment <- c("GSK15min", "GSK3hr","GSK48hr","GSK96hr","GSK168hr",
+               "MS02315min", "MS0233hr","MS02348hr","MS02396hr","MS023168hr")
+# Combine the p-values into a single vector
+pval <- c(pval_GSK15min, pval_GSK3hr,pval_GSK48hr,pval_GSK96hr,pval_GSK168hr,
+          pval_MS02315min, pval_MS0233hr,pval_MS02348hr,pval_MS02396hr,pval_MS023168hr)
+
+count <- c(count_GSK15min, count_GSK3hr,count_GSK48hr,count_GSK96hr,count_GSK168hr, count_MS02315min, count_MS0233hr,count_MS02348hr,count_MS02396hr,count_MS023168hr)
+
+# Create the data frame
+df <- data.frame(treatment = treatment, pval = pval,  count = count)
+
+write.csv(df, "5-figures/PermTests/SummaryData_100000-Perm_pval.csv")
+
+
+```
+
+
+
+# Log2FC
+
+```{r Log2FC vs expression}
+# inspired by Sokolova et al paper on FLASH kndn and impact on histone expression Supplementary Figure S3:
+
+PlotList <- c("GSK591_15min","GSK591_3hr", "GSK591_48hr", "GSK591_96hr", "GSK591_168hr")
+LabelMe <- c("H1-3","H1-5", "H4C8")
+
+colors<-c("#006600", "#666666")
+plot <- 
+  ProSeq_df %>%
+  filter(treatment_names1 %in% PlotList) %>%
+  # filter(incubation_hour == "0.25") %>%
+  ggplot(aes(x=log10(baseMean), y=log2FoldChange,
+             # color = histone,
+             # color = factor(U1_50_proximal),
+             # fill=treatment_names1
+             )) + 
+  # geom_hline(yintercept = 0 , linetype = 'dashed')+
+  geom_point()+
+  geom_point(data = ProSeq_df %>% filter(treatment_names1 %in% PlotList & histone == "yes"),
+            aes(color = histone2),
+            # position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75), vjust = -1, size = 3
+            ) +
+    geom_text_repel(data = ProSeq_df %>% filter(treatment_names1 %in% PlotList & histone2 %in% LabelMe),
+              aes(label = histone2)
+            # position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.75), vjust = -1, size = 3
+            ) +
+  # geom_violin(alpha=0.5, orientation = 'y')+
+  # scale_fill_manual(values=colors)+
+  labs(title="Nascent transcription upon PRMT5 inhibition: \nAnalysis of histone genes",
+       x="Incubation Time (hours; non-linear)", y = "Log2 FC")+
+  #geom_jitter(shape=21,width = .2, alpha = .2) +
+  # scale_color_manual(values=colors)+
+  facet_grid(~treatment_names1)
+  theme_classic()+
+  theme(title=element_text(size=16,face="bold"),
+        axis.text=element_text(size=14,colour = "black"),
+        axis.title=element_text(size=14,face="bold"),
+        legend.title=element_text(size=14),
+        legend.text=element_text(size=14),
+        legend.position="bottom")
+plot
+```
+
+
+
+# Boxplot
+
+```{r Boxplot2}
+# unique(ProSeq_df$treatment_names1)
+PlotList <- c("GSK591_15min","GSK591_3hr", "GSK591_48hr", "GSK591_96hr", "GSK591_168hr")
+
+
+plot <- 
+  ProSeq_df %>%
+  filter(treatment_names1 %in% PlotList) %>%
+  filter(transcript_name %in% PlotList) %>%
+  # filter(incubation_hour == "0.25") %>%
+  ggplot(aes(x=factor(incubation_hour), y=log2FoldChange, 
+             color = factor(histone),
+             # fill=treatment_names1
+             )) + 
+  geom_hline(yintercept = 0 , linetype = 'dashed')+
+  geom_boxplot(width=0.7)+
+  # geom_violin(alpha=0.5, orientation = 'y')+
+  # scale_fill_manual(values=colors)+
+  labs(title="Histone gene transcription upon PRMT5 inhibition",
+       x="Incubation Time (hours; non-linear)", y = "Log2 Fold Change")+
+  #geom_jitter(shape=21,width = .2, alpha = .2) +
+  # scale_color_manual(values=colors)+
+  theme_classic()
+  # theme(legend.position = 'none')+
+  # xlim(-0.5,2.5)
+  # stat_compare_means(
+  #  comparisons = list(c("GSK591vDMSO_chromatin", "AllA549ExpressedGenes")),
+  #  method = "wilcox.test",
+  #  #aes(x = 2),  # Specify x-coordinate for comparison annotations, dont need if specifying comparisons
+  #  bracket.size = 0.5,
+  #  label = "p.signif" #converts p value to stars
+  # ) + 
+  # stat_summary(
+  #   fun.data = stat_box_data,
+  #   geom = "text",
+  #   hjust = 2.5,
+  #   # vjust = 1.2
+  # )+
+  # coord_flip()
+
+plot
+```
+
+# Heatmaps
+
+# heatmaps of DESEQ2
+
+Explore here for annotations:
+/Users/jacobroth/Library/CloudStorage/OneDrive-Personal/RothJacob_PhDFiles/1-Projects/2-Experiments/JSRe0062-T_na_NB02-128_PRMTi-LikeSplicingConsequences/20221107_DataVisualization_JSRe0062_RMATs-Analysis.Rmd
+
+```{r Complex heatmap trial}
+library(ComplexHeatmap)
+set.seed(123)
+nr1 = 4; nr2 = 8; nr3 = 6; nr = nr1 + nr2 + nr3
+nc1 = 6; nc2 = 8; nc3 = 10; nc = nc1 + nc2 + nc3
+mat = cbind(rbind(matrix(rnorm(nr1*nc1, mean = 1,   sd = 0.5), nr = nr1),
+          matrix(rnorm(nr2*nc1, mean = 0,   sd = 0.5), nr = nr2),
+          matrix(rnorm(nr3*nc1, mean = 0,   sd = 0.5), nr = nr3)),
+    rbind(matrix(rnorm(nr1*nc2, mean = 0,   sd = 0.5), nr = nr1),
+          matrix(rnorm(nr2*nc2, mean = 1,   sd = 0.5), nr = nr2),
+          matrix(rnorm(nr3*nc2, mean = 0,   sd = 0.5), nr = nr3)),
+    rbind(matrix(rnorm(nr1*nc3, mean = 0.5, sd = 0.5), nr = nr1),
+          matrix(rnorm(nr2*nc3, mean = 0.5, sd = 0.5), nr = nr2),
+          matrix(rnorm(nr3*nc3, mean = 1,   sd = 0.5), nr = nr3))
+   )
+mat = mat[sample(nr, nr), sample(nc, nc)] # random shuffle rows and columns
+rownames(mat) = paste0("row", seq_len(nr))
+colnames(mat) = paste0("column", seq_len(nc))
+
+Heatmap(mat)
+
+```
+
+
+```{r Heatmap of protein coding genes, eval = FALSE}
+
+mat_proteins <- DESEQ2_pval_pivot %>%
+  filter(Class == "protein_coding")
+  # filter(Class == "lncRNA")
+
+
+mat_proteins <- mat_proteins %>% dplyr::select(-ChromosomeB,-ChromosomeC)
+mat_proteins <- mat_proteins %>% dplyr::select(gene_id,
+                                               GeneSymbol,
+                                               Chromosome,
+                                               Class,
+  # DESEQ2_D2M,DESEQ2_D4M,
+                                                   # DESEQ2_D2G,
+  DESEQ2_D4G,
+                                                   # DESEQ2_pICln.2, DESEQ2_pICln.3,
+                                                   # DESEQ2_PRMT5.3,DESEQ2_PRMT5.4,
+                                                   # DESEQ2_CoPR5.1,DESEQ2_CoPR5.3,
+                                                   # DESEQ2_RIOK1.1,DESEQ2_RIOK1.3,
+                                                   DESEQ2_TCAB1kd,
+                                                   # DESEQ2_USPL1kd,
+                                                   DESEQ2_EAF1
+                                                   )
+
+# mat_proteins <- mat_proteins %>% drop_na()
+mat_proteins <- mat_proteins %>% mutate_if(is.numeric, ~replace(., is.na(.), 0))
+
+mat_proteins_names <- unique(mat_proteins$gene_id)
+
+mat_proteins <- mat_proteins[ ,-c(1:4)]
+
+rownames(mat_proteins) <- mat_proteins_names
+mat_proteins <- as.matrix(mat_proteins)
+
+pdf(paste("5-figures/Heatmaps/Heatmap-Proteins_EAF1-MutantVsTCAB1-KndnVsTCAB1-KndnVsPRMT5i-ImputedZero_.pdf", sep = ""),
+    width = 15, height = 20)
+pheatmap(mat_proteins)
+
+dev.off()
+
+```
+
+
+
+```{r Heatmap with coerced 0, eval = FALSE}
+
+mat_JSRe0105 <- DESEQ2_pval_pivot %>%
+  # filter(Class != "protein_coding") %>%
+  filter(Class == "lncRNA")
+
+
+mat_JSRe0105 <- mat_JSRe0105 %>% mutate_if(is.numeric, ~replace(., is.na(.), 0))
+
+
+mat_JSRe0105_names <- unique(mat_JSRe0105$gene_id)
+
+mat_JSRe0105 <- mat_JSRe0105[ ,-c(1:4)]
+
+mat_JSRe0105 <- mat_JSRe0105 %>% dplyr::select(-ChromosomeB,-ChromosomeC)
+mat_JSRe0105 <- mat_JSRe0105 %>% dplyr::select(DESEQ2_D2G,DESEQ2_D2GM,DESEQ2_D2M, DESEQ2_D4G,DESEQ2_D4GM, DESEQ2_D4M, DESEQ2_pICln.2, DESEQ2_pICln.3, DESEQ2_PRMT5.3,DESEQ2_PRMT5.4)
+
+rownames(mat_JSRe0105) = mat_JSRe0105_names
+mat_JSRe0105 <- as.matrix(mat_JSRe0105)
+
+pdf(paste("5-figures/HeatmapTest.pdf", sep = ""),
+    width = 15, height = 20)
+pheatmap(mat_JSRe0105)
+
+dev.off()
+
+```
+
+```{r Heatmap Histones1}
+
+# Install necessary packages if not already installed
+if (!requireNamespace("ComplexHeatmap", quietly = TRUE)) {
+  install.packages("BiocManager")
+  BiocManager::install("ComplexHeatmap")
+}
+if (!requireNamespace("circlize", quietly = TRUE)) {
+  install.packages("circlize")
+}
+
+# Load necessary libraries
+library(ComplexHeatmap)
+library(circlize)
+library(dplyr)
+
+
+
+
+# Assuming your dataset is named 'df'
+# Filter dataset for 'GSK591' in treatment_names2 and not 'DEX'
+filtered_df <- ProSeq_df %>%
+  filter(grepl("Type II PRMTi", treatment_names2)) %>%
+  filter(histone == "yes")# Aggregate the log2FoldChange values to ensure unique combinations
+
+aggregated_df <- filtered_df %>%
+  group_by(transcript_name, treatment_names2) %>%
+  summarize(log2FoldChange = mean(log2FoldChange, na.rm = TRUE), .groups = 'drop')
+
+# Prepare data for heatmap
+heatmap_data <- aggregated_df %>%
+  select(transcript_name, log2FoldChange, treatment_names2) %>%
+    # select(transcript_name, log2FoldChange, incubation_hour) %>%
+  spread(key = treatment_names2, value = log2FoldChange)
+
+#workinghere
+# Extract annotation data
+annotation_data <- filtered_df %>%
+  select(transcript_name, NPAT_proximal, WRAP53_proximal, 
+         H3F3_50_proximal, H3F3_25_proximal, H3F3_10_proximal, seqnames) %>%
+  distinct()
+
+# Convert binary annotation columns to factors
+annotation_data <- annotation_data %>%
+  mutate(across(c(NPAT_proximal, WRAP53_proximal, 
+                  H3F3_50_proximal, H3F3_25_proximal, H3F3_10_proximal
+                  # , seqnames
+                  ), 
+                ~ factor(., levels = c("no", "yes"))))
+
+# unique(annotation_data$seqnames)
+# Merge heatmap data with annotation data
+heatmap_data <- heatmap_data %>%
+  left_join(annotation_data, by = "transcript_name")
+
+# Separate numeric data from annotations
+numeric_data <- heatmap_data %>%
+  select(-transcript_name, -NPAT_proximal, -WRAP53_proximal, 
+         -H3F3_50_proximal, -H3F3_25_proximal, -H3F3_10_proximal, -seqnames)
+
+# Convert numeric data to matrix and ensure it's numeric
+heatmap_matrix <- as.matrix(numeric_data)
+heatmap_matrix <- apply(heatmap_matrix, 2, as.numeric)
+rownames(heatmap_matrix) <- heatmap_data$transcript_name
+
+# Replace any remaining NA/NaN/Inf values with 0 or a suitable value
+heatmap_matrix[is.na(heatmap_matrix) | is.nan(heatmap_matrix) | is.infinite(heatmap_matrix)] <- 0
+unique(filtered_df$treatment_names2)
+
+
+# Generate a color mapping for seqnames
+seqnames_levels <- unique(annotation_data$seqnames)
+seqnames_colors <- rainbow(length(seqnames_levels))
+names(seqnames_colors) <- seqnames_levels
+
+seq_colors <- c("chr2" = "",
+                "chr22" = "",
+                "chr3" = "",
+                "chr12" = "",
+                "chr7" = "",
+                "chr11" = "",
+                "chr5" = "",
+                "chr10" = "",
+                "chr4" = "",
+                "chr1" = "",
+                "chr17"  = "",
+                "chr6" = "")
+
+# Prepare annotations
+row_anno <- rowAnnotation(
+  NPAT_proximal = anno_simple(as.character(heatmap_data$NPAT_proximal), col = c("yes" = "gray60", "no" = "gray90")),
+  WRAP53_proximal = anno_simple(as.character(heatmap_data$WRAP53_proximal), col = c("yes" = "gray60", "no" = "gray90")),
+  H3F3_50_proximal = anno_simple(as.character(heatmap_data$H3F3_50_proximal), col = c("yes" = "gray60", "no" = "gray90")),
+  H3F3_25_proximal = anno_simple(as.character(heatmap_data$H3F3_25_proximal), col = c("yes" = "gray60", "no" = "gray90")),
+  H3F3_10_proximal = anno_simple(as.character(heatmap_data$H3F3_10_proximal), col = c("yes" = "gray60", "no" = "gray90")),
+  seqnames = anno_simple(as.character(heatmap_data$seqnames), col = seqnames_colors)
+)
+
+# Set ht_opt$message to FALSE to turn off the message
+ht_opt$message = FALSE
+
+# Determine the range for color mapping
+heatmap_min <- min(heatmap_matrix, na.rm = TRUE)
+heatmap_max <- max(heatmap_matrix, na.rm = TRUE)
+
+
+# Define the desired order of the columns
+desired_order <- c("Type II PRMTi: 15min", "Type II PRMTi: 3hr", "Type II PRMTi: 48hr", "Type II PRMTi: 96hr", "Type II PRMTi: 168hr") # Replace with your actual column names in the desired order
+
+# Reorder the columns of the matrix
+heatmap_matrix <- heatmap_matrix[, desired_order]
+
+# Save as PDF
+# pdf("5-figures/JSRe0115-R_PROSeq-HistonesWithAnnotations.pdf", width = 10, height = 12) # Adjust width and height as needed
+# Save as PNG
+# png("heatmap.png", width = 1200, height = 1500, res = 150) # Adjust width, height, and resolution as needed
+
+# Plot heatmap with continuous color scale
+Heatmap(heatmap_matrix, 
+        name = "log2FoldChange", 
+        row_title = "Transcripts", 
+        column_title = "Treatment Names",
+        # right_annotation = row_anno,
+        show_row_names = TRUE, 
+        show_column_names = TRUE,
+        cluster_rows = TRUE,
+        row_km = 3, # Cluster rows into 3 groups
+        cluster_columns = FALSE,
+        use_raster = FALSE,
+        col = colorRamp2(c(heatmap_min, 0, heatmap_max), c("#5D3A9B", "white", "#E66100")),
+        height = unit(nrow(heatmap_matrix) * 0.2, "cm"),
+        row_names_gp = gpar(fontsize = 8))
+# Close the PDF device
+# dev.off()
+
+```
+
+```{r Heatmap Histones2}
+
+# Install necessary packages if not already installed
+if (!requireNamespace("ComplexHeatmap", quietly = TRUE)) {
+  install.packages("BiocManager")
+  BiocManager::install("ComplexHeatmap")
+}
+if (!requireNamespace("circlize", quietly = TRUE)) {
+  install.packages("circlize")
+}
+
+# Load necessary libraries
+library(ComplexHeatmap)
+library(circlize)
+library(dplyr)
+
+
+PlotList <- c("GSK591_15min","GSK591_3hr", "GSK591_48hr", "GSK591_96hr", "GSK591_168hr", "MS023_168hr")
+
+colors<-c("#006600", "#666666")
+
+# Assuming your dataset is named 'df'
+# Filter dataset for 'GSK591' in treatment_names2 and not 'DEX'
+filtered_df <- ProSeq_df %>%
+  filter(treatment_names1 %in% PlotList) %>%
+  # filter(grepl("Type II PRMTi", treatment_names2)) %>%
+  filter(histone == "yes")# Aggregate the log2FoldChange values to ensure unique combinations
+
+aggregated_df <- filtered_df %>%
+  group_by(histone2, treatment_names2) %>%
+  summarize(log2FoldChange = mean(log2FoldChange, na.rm = TRUE), .groups = 'drop')
+
+# Prepare data for heatmap
+heatmap_data <- aggregated_df %>%
+  select(histone2, log2FoldChange, treatment_names2) %>%
+    # select(transcript_name, log2FoldChange, incubation_hour) %>%
+  spread(key = treatment_names2, value = log2FoldChange)
+
+
+# Extract annotation data
+##EditedHere: transcript_name to histone2
+annotation_data <- filtered_df %>%
+  select(histone2,sheet_names, seqnames) %>%
+  distinct()
+
+# Convert binary annotation columns to factors
+annotation_data <- annotation_data %>%
+  mutate(across(c(sheet_names
+                  ), 
+                ~ factor(., levels = c("no", "yes"))))
+
+# unique(annotation_data$seqnames)
+# Merge heatmap data with annotation data
+heatmap_data <- heatmap_data %>%
+  left_join(annotation_data, by = "histone2")
+heatmap_data <- na.omit(heatmap_data)
+
+# Separate numeric data from annotations
+numeric_data <- heatmap_data %>%
+  select(-sheet_names, -seqnames)
+
+# Convert numeric data to matrix and ensure it's numeric
+heatmap_matrix <- as.matrix(numeric_data)
+heatmap_matrix <- apply(heatmap_matrix, 2, as.numeric)
+rownames(heatmap_matrix) <- heatmap_data$histone2
+
+# Replace any remaining NA/NaN/Inf values with 0 or a suitable value; I removed NA in the dataframe first
+# heatmap_matrix[is.na(heatmap_matrix) | is.nan(heatmap_matrix) | is.infinite(heatmap_matrix)] <- 0
+# Remove rows with NA/NaN/Inf values
+# heatmap_matrix <- na.omit(heatmap_matrix)
+unique(filtered_df$treatment_names2)
+
+
+# Generate a color mapping for seqnames
+seqnames_levels <- unique(annotation_data$seqnames)
+seqnames_colors <- rainbow(length(seqnames_levels))
+names(seqnames_colors) <- seqnames_levels
+
+seq_colors <- c("chr2" = "",
+                "chr22" = "",
+                "chr3" = "",
+                "chr12" = "",
+                "chr7" = "",
+                "chr11" = "",
+                "chr5" = "",
+                "chr10" = "",
+                "chr4" = "",
+                "chr1" = "",
+                "chr17"  = "",
+                "chr6" = "")
+
+# Prepare annotations
+row_anno <- rowAnnotation(
+  SRSF1 = anno_simple(as.character(heatmap_data$SRSF1), col = c("yes" = "gray60", "no" = "gray90")),
+  SRSF7 = anno_simple(as.character(heatmap_data$SRSF7), col = c("yes" = "gray60", "no" = "gray90")),
+  RNPS1 = anno_simple(as.character(heatmap_data$RNPS1), col = c("yes" = "gray60", "no" = "gray90")),
+  LMNA = anno_simple(as.character(heatmap_data$LMNA), col = c("yes" = "gray60", "no" = "gray90")),
+  PML = anno_simple(as.character(heatmap_data$PML), col = c("yes" = "gray60", "no" = "gray90")),
+    SP100 = anno_simple(as.character(heatmap_data$SP100), col = c("yes" = "gray60", "no" = "gray90")),
+    SMN2 = anno_simple(as.character(heatmap_data$SMN2), col = c("yes" = "gray60", "no" = "gray90")),
+    WRAP53 = anno_simple(as.character(heatmap_data$WRAP53), col = c("yes" = "gray60", "no" = "gray90")),
+    SAM68 = anno_simple(as.character(heatmap_data$SAM68), col = c("yes" = "gray60", "no" = "gray90")),
+    FBL = anno_simple(as.character(heatmap_data$FBL), col = c("yes" = "gray60", "no" = "gray90")),
+    NPAT = anno_simple(as.character(heatmap_data$NPAT), col = c("yes" = "gray60", "no" = "gray90")),
+  seqnames = anno_simple(as.character(heatmap_data$seqnames), col = seqnames_colors)
+)
+
+# Set ht_opt$message to FALSE to turn off the message
+ht_opt$message = FALSE
+
+# Determine the range for color mapping
+heatmap_min <- min(heatmap_matrix, na.rm = TRUE)
+heatmap_max <- max(heatmap_matrix, na.rm = TRUE)
+
+
+# Define the desired order of the columns
+desired_order <- c("Type II PRMTi: 15min", "Type II PRMTi: 3hr", "Type II PRMTi: 48hr", "Type II PRMTi: 96hr", "Type II PRMTi: 168hr", "Type I PRMTi: 168hr") # Replace with your actual column names in the desired order
+
+# Reorder the columns of the matrix
+heatmap_matrix <- heatmap_matrix[, desired_order]
+
+# Save as PDF
+pdf("5-figures/Heatmaps/JSRe0115-R_PROSeq-HistonesWithAnnotations-AllBarutcu3_20240719.pdf", width = 12, height = 6) # Adjust width and height as needed
+# Save as PNG
+# png("5-figures/Heatmaps/JSRe0115-R_PROSeq-HistonesWithAnnotations-AllBarutcu", width = 1800, height = 1000, res = 150) # Adjust width, height, and resolution as needed
+
+# Plot heatmap with continuous color scale
+Heatmap(heatmap_matrix, 
+        name = "log2FoldChange", 
+        row_title = "Transcripts", 
+        column_title = "Treatment Names",
+        right_annotation = row_anno,
+        show_row_names = TRUE, 
+        show_column_names = TRUE,
+        cluster_rows = TRUE,
+        row_km = 2, # Cluster rows into 3 groups
+        cluster_columns = FALSE,
+        use_raster = FALSE,
+        col = colorRamp2(c(heatmap_min, 0, heatmap_max), c("#5D3A9B", "white", "#E66100")),
+        height = unit(nrow(heatmap_matrix) * 0.2, "cm"),
+        row_names_gp = gpar(fontsize = 7))
+# Close the PDF device
+dev.off()
+
+```
+```{r Heatmap All ProSeq, eval = FALSE}
+
+# Install necessary packages if not already installed
+if (!requireNamespace("ComplexHeatmap", quietly = TRUE)) {
+  install.packages("BiocManager")
+  BiocManager::install("ComplexHeatmap")
+}
+if (!requireNamespace("circlize", quietly = TRUE)) {
+  install.packages("circlize")
+}
+
+# Load necessary libraries
+library(ComplexHeatmap)
+library(circlize)
+library(dplyr)
+
+
+# Assuming your dataset is named 'df'
+# Filter dataset for 'GSK591' in treatment_names2 and not 'DEX'
+filtered_df <- ProSeq_df %>%
+  filter(grepl("Type II PRMTi", treatment_names2))
+  # filter(histone == "yes")# Aggregate the log2FoldChange values to ensure unique combinations
+
+aggregated_df <- filtered_df %>%
+  group_by(histone2, treatment_names2) %>%
+  summarize(log2FoldChange = mean(log2FoldChange, na.rm = TRUE), .groups = 'drop')
+
+# Prepare data for heatmap
+heatmap_data <- aggregated_df %>%
+  select(histone2, log2FoldChange, treatment_names2) %>%
+    # select(transcript_name, log2FoldChange, incubation_hour) %>%
+  spread(key = treatment_names2, value = log2FoldChange)
+
+# Extract annotation data
+annotation_data <- filtered_df %>%
+  select(histone2, NPAT_proximal2, WRAP53_proximal2, 
+                  H3F3_50_proximal, U1_50_proximal, seqnames) %>%
+  distinct()
+
+# Convert binary annotation columns to factors
+annotation_data <- annotation_data %>%
+  mutate(across(c(NPAT_proximal2, WRAP53_proximal2, 
+                  H3F3_50_proximal, U1_50_proximal
+                  # , seqnames
+                  ), 
+                ~ factor(., levels = c("no", "yes"))))
+
+# unique(annotation_data$seqnames)
+# Merge heatmap data with annotation data
+heatmap_data <- heatmap_data %>%
+  left_join(annotation_data, by = "histone2")
+
+# Separate numeric data from annotations
+numeric_data <- heatmap_data %>%
+  select(-histone2, -NPAT_proximal2, -WRAP53_proximal2, 
+         -H3F3_50_proximal, -U1_50_proximal, -seqnames)
+
+# Convert numeric data to matrix and ensure it's numeric
+heatmap_matrix <- as.matrix(numeric_data)
+heatmap_matrix <- apply(heatmap_matrix, 2, as.numeric)
+rownames(heatmap_matrix) <- heatmap_data$histone2
+
+# Replace any remaining NA/NaN/Inf values with 0 or a suitable value
+heatmap_matrix[is.na(heatmap_matrix) | is.nan(heatmap_matrix) | is.infinite(heatmap_matrix)] <- 0
+# unique(filtered_df$treatment_names2)
+
+
+# Generate a color mapping for seqnames
+seqnames_levels <- unique(annotation_data$seqnames)
+seqnames_colors <- rainbow(length(seqnames_levels))
+names(seqnames_colors) <- seqnames_levels
+
+seq_colors <- c("chr2" = "",
+                "chr22" = "",
+                "chr3" = "",
+                "chr12" = "",
+                "chr7" = "",
+                "chr11" = "",
+                "chr5" = "",
+                "chr10" = "",
+                "chr4" = "",
+                "chr1" = "",
+                "chr17"  = "",
+                "chr6" = "")
+
+# Prepare annotations
+row_anno <- rowAnnotation(
+  NPAT_proximal2 = anno_simple(as.character(heatmap_data$NPAT_proximal2), col = c("yes" = "gray60", "no" = "gray90")),
+  WRAP53_proximal2 = anno_simple(as.character(heatmap_data$WRAP53_proximal2), col = c("yes" = "gray60", "no" = "gray90")),
+  H3F3_50_proximal = anno_simple(as.character(heatmap_data$H3F3_50_proximal), col = c("yes" = "gray60", "no" = "gray90")),
+  U1_50_proximal = anno_simple(as.character(heatmap_data$U1_50_proximal), col = c("yes" = "gray60", "no" = "gray90")),
+  seqnames = anno_simple(as.character(heatmap_data$seqnames), col = seqnames_colors)
+)
+
+# Set ht_opt$message to FALSE to turn off the message
+ht_opt$message = FALSE
+
+# Determine the range for color mapping
+heatmap_min <- min(heatmap_matrix, na.rm = TRUE)
+heatmap_max <- max(heatmap_matrix, na.rm = TRUE)
+
+
+# Define the desired order of the columns
+desired_order <- c("Type II PRMTi: 15min", "Type II PRMTi: 3hr", "Type II PRMTi: 48hr", "Type II PRMTi: 96hr", "Type II PRMTi: 168hr") # Replace with your actual column names in the desired order
+
+# Reorder the columns of the matrix
+heatmap_matrix <- heatmap_matrix[, desired_order]
+
+# Save as PDF
+# pdf("5-figures/JSRe0115-R_PROSeq-HistonesWithAnnotations.pdf", width = 12, height = 15) # Adjust width and height as needed
+# Save as PNG
+png("5-figures/JSRe0115-R_PROSeq-AllWithAnnotations.png",
+    # width = 1500, height = 5000, 
+    res = 150) # Adjust width, height, and resolution as needed
+
+# Plot heatmap with continuous color scale
+Heatmap(heatmap_matrix, 
+        name = "log2FoldChange", 
+        row_title = "Transcripts", 
+        column_title = "Treatment Names",
+        right_annotation = row_anno,
+        show_row_names = TRUE, 
+        show_column_names = TRUE,
+        cluster_rows = TRUE,
+        row_km = 2, # Cluster rows into 3 groups
+        cluster_columns = FALSE,
+        use_raster = FALSE,
+        col = colorRamp2(c(heatmap_min, 0, heatmap_max), c("#5D3A9B", "white", "#E66100")),
+        # height = unit(nrow(heatmap_matrix) * 0.2, "cm"),
+        row_names_gp = gpar(fontsize = 7))
+# Close the PDF device
+dev.off()
+
+# write.csv(heatmap_data,
+#           file=paste("4-data_processed/JSRe0115-R_PROSeq-HistonesWithAnnotationsData-20240715.csv", sep =""),
+#           row.names = FALSE)
+
+```
+
